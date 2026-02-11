@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Jornal Agora</title>
+    <link>https://www.jornalagora.com.br/</link>
+    <description>Notícias de política, economia, saúde e tecnologia.</description>
+    <language>pt-BR</language>
+    <lastBuildDate>Tue, 10 Feb 2026 00:00:00 GMT</lastBuildDate>
+
+    <item>
+      <title>Governo anuncia plano de infraestrutura digital</title>
+      <link>https://www.jornalagora.com.br/noticia-infraestrutura-digital.html</link>
+      <pubDate>Mon, 09 Feb 2026 11:00:00 GMT</pubDate>
+      <description>Plano federal amplia conectividade para escolas, saúde e pequenos negócios.</description>
+    </item>
+
+    <item>
+      <title>Crédito verde ganha força e acelera projetos sustentáveis</title>
+      <link>https://www.jornalagora.com.br/noticia-credito-verde.html</link>
+      <pubDate>Mon, 09 Feb 2026 12:20:00 GMT</pubDate>
+      <description>Linhas de financiamento com juros reduzidos ampliam investimentos em eficiência energética.</description>
+    </item>
+
+    <item>
+      <title>Mutirões de vacinação são ampliados em mais de 200 cidades</title>
+      <link>https://www.jornalagora.com.br/noticia-vacinacao.html</link>
+      <pubDate>Mon, 09 Feb 2026 13:15:00 GMT</pubDate>
+      <description>Secretarias de saúde reforçam vacinação com horários estendidos e pontos itinerantes.</description>
+    </item>
+  </channel>
+</rss>

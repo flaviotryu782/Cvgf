@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Ilustração de crédito verde e crescimento sustentável">
+  <defs>
+    <linearGradient id="bg2" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0a7a37"/>
+      <stop offset="100%" stop-color="#1f4d2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg2)"/>
+  <g fill="#d4ffd8" fill-opacity="0.15">
+    <ellipse cx="280" cy="210" rx="170" ry="100"/>
+    <ellipse cx="1300" cy="710" rx="190" ry="120"/>
+  </g>
+  <g fill="#fff" font-family="Inter, Arial, sans-serif">
+    <text x="90" y="170" font-size="66" font-weight="700">Crédito Verde</text>
+    <text x="90" y="250" font-size="36" opacity="0.92">Financiamento para energia limpa e eficiência</text>
+  </g>
+  <g>
+    <rect x="180" y="560" width="180" height="170" fill="#b7f7c0"/>
+    <rect x="430" y="500" width="180" height="230" fill="#94e7a1"/>
+    <rect x="680" y="430" width="180" height="300" fill="#6fd986"/>
+    <rect x="930" y="370" width="180" height="360" fill="#45c96b"/>
+    <rect x="1180" y="300" width="180" height="430" fill="#18b957"/>
+  </g>
+</svg>
