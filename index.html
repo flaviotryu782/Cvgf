@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jornal Agora | Notícias de Política, Economia, Saúde e Tecnologia</title>
+  <meta name="description" content="Portal Jornal Agora com cobertura diária de política, economia, saúde e tecnologia, com reportagens originais e análises aprofundadas." />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="author" content="Redação Jornal Agora" />
+  <link rel="canonical" href="https://www.jornalagora.com.br/" />
+  <link rel="alternate" type="application/rss+xml" title="Jornal Agora RSS" href="https://www.jornalagora.com.br/feed.xml" />
+  <link rel="icon" href="images/infraestrutura-digital.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Jornal Agora" />
+  <meta property="og:title" content="Jornal Agora | Notícias de Política, Economia, Saúde e Tecnologia" />
+  <meta property="og:description" content="Reportagens originais com foco em impacto social, economia real e políticas públicas." />
+  <meta property="og:url" content="https://www.jornalagora.com.br/" />
+  <meta property="og:image" content="https://www.jornalagora.com.br/images/infraestrutura-digital.svg" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Jornal Agora | Notícias de Política, Economia, Saúde e Tecnologia" />
+  <meta name="twitter:description" content="Reportagens originais com foco em impacto social, economia real e políticas públicas." />
+  <meta name="twitter:image" content="https://www.jornalagora.com.br/images/infraestrutura-digital.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "Jornal Agora",
+        "url": "https://www.jornalagora.com.br/",
+        "logo": "https://www.jornalagora.com.br/images/infraestrutura-digital.svg"
+      },
+      {
+        "@type": "WebSite",
+        "name": "Jornal Agora",
+        "url": "https://www.jornalagora.com.br/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://www.jornalagora.com.br/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-content">
+      <a class="logo" href="index.html">Jornal <span>Agora</span></a>
+      <nav class="top-nav">
+        <a href="index.html">Início</a>
+        <a href="sobre.html">Sobre</a>
+        <a href="contato.html">Contato</a>
+        <a href="politica-de-privacidade.html">Privacidade</a>
+        <a href="termos-de-uso.html">Termos</a>
+        <a href="autores.html">Autores</a>
+        <a href="politica-editorial.html">Editorial</a>
+      </nav>
+      <button id="themeToggle" class="theme-toggle" aria-label="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <main class="container main-layout">
+    <section class="card hero">
+      <img class="hero-image" src="images/infraestrutura-digital.svg" alt="Cidade conectada representando infraestrutura digital" loading="eager" />
+      <p class="tag">Destaque editorial</p>
+      <h1>Plano nacional de infraestrutura digital mira inclusão de 20 milhões de brasileiros</h1>
+      <p>A medida prevê investimento em conectividade escolar, rede pública de saúde e capacitação técnica regional até 2028.</p>
+      <a class="button" href="noticia-infraestrutura-digital.html">Ler matéria completa</a>
+    </section>
+
+    <aside class="card sidebar">
+      <h2>Últimas publicações</h2>
+      <span class="badge-ok">Conteúdo original</span>
+      <ul class="latest-list" id="latestNewsList">
+        <li><time>08:00</time><a href="noticia-infraestrutura-digital.html">Infraestrutura digital entra na pauta federal</a></li>
+        <li><time>09:20</time><a href="noticia-credito-verde.html">Bancos ampliam crédito para energia limpa</a></li>
+        <li><time>10:15</time><a href="noticia-vacinacao.html">Campanha de vacinação tem meta reforçada</a></li>
+      </ul>
+    </aside>
+
+    <section class="card section publish-section">
+      <h2>Publicar notícia no Supabase</h2>
+      <p class="article-meta">Publicação persistida no banco de dados para ser exibida para todos os visitantes.</p>
+      <form id="publishForm" class="publish-form">
+        <input id="title" name="title" type="text" placeholder="Título da notícia" required maxlength="140" />
+        <input id="category" name="category" type="text" placeholder="Categoria (ex: Economia)" required maxlength="40" />
+        <input id="author" name="author" type="text" placeholder="Autor (ex: Redação)" required maxlength="80" />
+        <textarea id="summary" name="summary" rows="3" placeholder="Resumo da notícia" required maxlength="260"></textarea>
+        <button class="button" type="submit">Publicar</button>
+      </form>
+      <p id="publishStatus" class="status"></p>
+    </section>
+
+    <section class="card section">
+      <h2>Notícias em destaque</h2>
+      <div class="grid" id="newsGrid">
+        <article class="article-card">
+          <img src="images/infraestrutura-digital.svg" alt="Ilustração de infraestrutura digital" loading="lazy" />
+          <p class="article-meta">Política • 9 min de leitura</p>
+          <h3><a href="noticia-infraestrutura-digital.html">Governo anuncia plano de infraestrutura digital</a></h3>
+          <p>Entenda os impactos práticos para escolas, hospitais e pequenas empresas.</p>
+        </article>
+        <article class="article-card">
+          <img src="images/credito-verde.svg" alt="Ilustração sobre crédito verde" loading="lazy" />
+          <p class="article-meta">Economia • 7 min de leitura</p>
+          <h3><a href="noticia-credito-verde.html">Crédito verde ganha força no setor produtivo</a></h3>
+          <p>Linhas de financiamento com juros menores atraem pequenas e médias empresas.</p>
+        </article>
+        <article class="article-card">
+          <img src="images/vacinacao.svg" alt="Ilustração de campanha de vacinação" loading="lazy" />
+          <p class="article-meta">Saúde • 6 min de leitura</p>
+          <h3><a href="noticia-vacinacao.html">Municípios ampliam mutirões de vacinação</a></h3>
+          <p>Secretarias reforçam ações para aumentar cobertura e reduzir filas.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-links">
+        <a href="sobre.html">Sobre</a>
+        <a href="contato.html">Contato</a>
+        <a href="politica-de-privacidade.html">Política de Privacidade</a>
+        <a href="termos-de-uso.html">Termos de Uso</a>
+        <a href="autores.html">Autores</a>
+        <a href="politica-editorial.html">Política Editorial</a>
+      </div>
+      <p>© 2026 Jornal Agora — Jornalismo independente e informação verificada.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script type="module" src="supabase-news.js"></script>
+</body>
+</html>
