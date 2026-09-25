@@ -17,30 +17,35 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController controller;
     private PlayerAnimationController animationController;
+    private AdvancedBallControl advancedControl;
     private Vector3 currentVelocity;
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
         animationController = GetComponentInChildren<PlayerAnimationController>();
-        if (GetComponent<FootballContactPhysics>() == null)
-            gameObject.AddComponent<FootballContactPhysics>();
+        advancedControl = GetComponent<AdvancedBallControl>();
+        if (advancedControl == null)
+            advancedControl = gameObject.AddComponent<AdvancedBallControl>();
     }
 
     private void Update()
     {
-        Vector2 input = MobileInput.Instance != null ? MobileInput.Instance.Move : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-        Vector3 direction = new Vector3(input.x, 0f, input.y);
+        Vector2 input = MobileInput.Instance != null
+            ? MobileInput.Instance.Move
+            : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        Vector3 desiredDirection = new Vector3(input.x, 0f, input.y);
         bool sprinting = input.sqrMagnitude > 0.01f && Input.GetKey(KeyCode.LeftShift);
         float targetSpeed = sprinting ? sprintSpeed : speed;
 
-        if (direction.sqrMagnitude > 0.01f)
+        if (desiredDirection.sqrMagnitude > 0.01f)
         {
-            direction.Normalize();
+            desiredDirection.Normalize();
             if (ballController != null && ballController.Owner == transform)
                 targetSpeed *= dribbleReduction;
-            currentVelocity = Vector3.MoveTowards(currentVelocity, direction * targetSpeed, acceleration * Time.deltaTime);
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
+
+            currentVelocity = Vector3.MoveTowards(currentVelocity, desiredDirection * targetSpeed, acceleration * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredDirection), rotationSpeed * Time.deltaTime);
         }
         else
         {
@@ -52,14 +57,19 @@ public class PlayerController : MonoBehaviour
 
         controller.Move(currentVelocity * Time.deltaTime);
         animationController?.SetLocomotion(currentVelocity.magnitude / Mathf.Max(sprintSpeed, 0.01f), sprinting);
-        TryTakeBall();
+        TryTakeBall(desiredDirection);
     }
 
-    private void TryTakeBall()
+    private void TryTakeBall(Vector3 desiredDirection)
     {
         if (ball == null || ballController == null || ballSocket == null)
             return;
-        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform))
+        if (Vector3.Distance(transform.position, ball.position) > controlRange)
+            return;
+        if (ballController.Owner != null && ballController.Owner != transform)
+            return;
+
+        if (!advancedControl.TryControl(ballController, ballSocket, desiredDirection))
             ballController.TryControl(transform, ballSocket);
     }
 }

@@ -1,76 +1,57 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
-public class PlayerController : MonoBehaviour
+public sealed class AIPlayerContext
 {
-    [Header("Movement")]
-    [SerializeField] private float speed = 5.5f;
-    [SerializeField] private float sprintSpeed = 8f;
-    [SerializeField] private float acceleration = 18f;
-    [SerializeField] private float deceleration = 24f;
-    [SerializeField] private float rotationSpeed = 12f;
-
-    [Header("Ball control")]
-    [SerializeField] private Transform ball;
-    [SerializeField] private Transform ballSocket;
-    [SerializeField] private BallController ballController;
-    [SerializeField] private float controlRange = 2.2f;
-    [SerializeField] private float dribbleReduction = 0.7f;
-
-    private CharacterController controller;
-    private PlayerAnimationController animationController;
+    private readonly TeamAIControllerStateDriven controller;
+    private readonly AdvancedBallControl advancedControl;
     private Vector3 currentVelocity;
 
-    private void Awake()
+    public TeamAIControllerStateDriven Controller => controller;
+    public Transform Self => controller.transform;
+    public Transform Ball => controller.Ball;
+    public BallController BallController => controller.BallController;
+    public Transform TargetGoal => controller.TargetGoal;
+    public Transform HomePosition => controller.HomePosition;
+    public Transform BallSocket => controller.BallSocket;
+    public CharacterController CharacterController => controller.CharacterController;
+    public PlayerAnimationController AnimationController => controller.AnimationController;
+
+    public bool HasBall => BallController != null && BallController.Owner == Self;
+    public float DistanceToBall => Ball == null ? float.MaxValue : Vector3.Distance(Self.position, Ball.position);
+
+    public AIPlayerContext(TeamAIControllerStateDriven controller)
     {
-        controller = GetComponent<CharacterController>();
-        animationController = GetComponentInChildren<PlayerAnimationController>();
+        this.controller = controller;
+        advancedControl = controller.GetComponent<AdvancedBallControl>() ?? controller.gameObject.AddComponent<AdvancedBallControl>();
     }
 
-    private void Update()
+    public void MoveTo(Vector3 destination, float speed)
     {
-        Vector2 input = MobileInput.Instance != null ? MobileInput.Instance.Move : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-        Vector3 desiredDirection = new Vector3(input.x, 0f, input.y);
-
-        float targetSpeed = (input.sqrMagnitude > 0.01f) ? speed : 0f;
-        bool sprinting = input.sqrMagnitude > 0.01f && (Input.GetKey(KeyCode.LeftShift) || (MobileInput.Instance != null && MobileInput.Instance.IsSprinting));
-
-        if (sprinting)
-            targetSpeed = sprintSpeed;
-
-        if (desiredDirection.sqrMagnitude > 0.01f)
+        Vector3 direction = destination - Self.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.05f)
         {
-            desiredDirection.Normalize();
-            Vector3 targetVelocity = desiredDirection * targetSpeed;
-            currentVelocity = Vector3.MoveTowards(currentVelocity, targetVelocity, acceleration * Time.deltaTime);
-
-            Quaternion targetRotation = Quaternion.LookRotation(desiredDirection, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-        }
-        else
-        {
-            currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, deceleration * Time.deltaTime);
-        }
-
-        if (ballController != null && ballController.Owner == transform)
-        {
-            currentVelocity *= dribbleReduction;
-        }
-
-        controller.Move(currentVelocity * Time.deltaTime);
-        animationController?.SetLocomotion(currentVelocity.magnitude / Mathf.Max(sprintSpeed, 0.01f), sprinting);
-
-        TryTakeBall();
-    }
-
-    private void TryTakeBall()
-    {
-        if (ball == null || ballController == null || ballSocket == null)
+            currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, 24f * Time.deltaTime);
+            CharacterController.Move(currentVelocity * Time.deltaTime);
+            AnimationController?.SetLocomotion(0f, false);
             return;
-
-        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform))
-        {
-            ballController.TryControl(transform, ballSocket);
         }
+
+        direction.Normalize();
+        currentVelocity = Vector3.MoveTowards(currentVelocity, direction * speed, 18f * Time.deltaTime);
+        CharacterController.Move(currentVelocity * Time.deltaTime);
+        Self.rotation = Quaternion.Slerp(Self.rotation, Quaternion.LookRotation(direction), 8f * Time.deltaTime);
+        AnimationController?.SetLocomotion(Mathf.Clamp01(currentVelocity.magnitude / Mathf.Max(speed, 0.01f)), false);
+    }
+
+    public bool TryTakePossession(float range)
+    {
+        if (Ball == null || BallController == null || BallSocket == null || DistanceToBall > range)
+            return false;
+        if (BallController.Owner != null && BallController.Owner != Self)
+            return false;
+
+        Vector3 intendedDirection = currentVelocity.sqrMagnitude > 0.01f ? currentVelocity.normalized : Self.forward;
+        return advancedControl.TryControl(BallController, BallSocket, intendedDirection) || BallController.TryControl(Self, BallSocket);
     }
 }
