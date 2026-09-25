@@ -7,12 +7,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float speed = 5.5f;
     [SerializeField] private float sprintSpeed = 8f;
     [SerializeField] private float rotationSpeed = 12f;
-    [Header("Ball")]
+    [Header("Ball control")]
     [SerializeField] private Transform ball;
     [SerializeField] private BallController ballController;
+    [SerializeField] private Transform ballSocket;
     [SerializeField] private Transform enemyGoal;
-    [SerializeField] private float controlRange = 2.1f;
-    [SerializeField] private float shotPower = 13f;
+    [SerializeField] private Transform[] passTargets;
+    [SerializeField] private float controlRange = 2.2f;
+    [SerializeField] private float shotPower = 14f;
     [SerializeField] private float passPower = 8f;
 
     private CharacterController controller;
@@ -27,12 +29,28 @@ public class PlayerController : MonoBehaviour
         controller.Move(direction * (sprint ? sprintSpeed : speed) * Time.deltaTime);
         if (direction.sqrMagnitude > .01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
 
-        bool kick = MobileInput.Instance != null ? MobileInput.Instance.ConsumeKick() : Input.GetKeyDown(KeyCode.Space);
+        if (ballController == null || ball == null || ballSocket == null) return;
+        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform))
+            ballController.TryControl(transform, ballSocket);
+
         bool pass = MobileInput.Instance != null ? MobileInput.Instance.ConsumePass() : Input.GetKeyDown(KeyCode.LeftControl);
-        if (ball != null && Vector3.Distance(transform.position, ball.position) <= controlRange)
+        bool kick = false; float charge = 1f; BallController.ShotType type = BallController.ShotType.Ground;
+        if (MobileInput.Instance != null) kick = MobileInput.Instance.ConsumeKick(out charge, out type);
+        else if (Input.GetKeyDown(KeyCode.Space)) kick = true;
+        if (ballController.Owner != transform) return;
+        if (pass) ballController.Pass(GetPassDirection(), passPower);
+        else if (kick) ballController.Shoot((enemyGoal.position - ball.position).normalized, shotPower, type, charge);
+    }
+
+    private Vector3 GetPassDirection()
+    {
+        Transform best = null; float bestScore = float.MaxValue;
+        if (passTargets != null) foreach (Transform target in passTargets)
         {
-            if (kick) ballController.Kick((enemyGoal.position - ball.position).normalized, shotPower);
-            else if (pass) ballController.Kick(transform.forward, passPower);
+            if (target == null) continue;
+            Vector3 delta = target.position - transform.position; float score = delta.magnitude - Vector3.Dot(transform.forward, delta.normalized) * 3f;
+            if (score < bestScore) { bestScore = score; best = target; }
         }
+        return best != null ? (best.position - ball.position).normalized : transform.forward;
     }
 }
