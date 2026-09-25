@@ -47,10 +47,10 @@ public sealed class AIPlayerContext
         if (Ball == null || BallController == null || BallSocket == null)
             return false;
 
-        if (DistanceToBall > range)
+        if (BallController.Owner != null && BallController.Owner != Self)
             return false;
 
-        if (BallController.Owner != null && BallController.Owner != Self)
+        if (DistanceToBall > range)
             return false;
 
         return BallController.TryControl(Self, BallSocket);
