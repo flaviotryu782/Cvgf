@@ -9,16 +9,15 @@ public class MatchManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI timerText;
     [SerializeField] private GameObject endPanel;
     [SerializeField] private TextMeshProUGUI resultText;
-    [SerializeField] private Transform playerSpawn;
-    [SerializeField] private Transform[] enemySpawns;
-    [SerializeField] private Transform goalkeeperSpawn;
+    [SerializeField] private FootballTeamManager playerTeam;
+    [SerializeField] private FootballTeamManager opponentTeam;
     [SerializeField] private float matchDuration = 120f;
 
     private int playerScore, enemyScore;
     private float timeRemaining;
     private bool running;
 
-    private void Start() { RestartMatch(); }
+    private void Start() => RestartMatch();
     private void Update()
     {
         if (!running) return;
@@ -31,28 +30,26 @@ public class MatchManager : MonoBehaviour
     {
         if (!running) return;
         if (scoringTeam == 0) playerScore++; else enemyScore++;
-        ResetPositions();
-        ball.ResetBall(ballKickoff != null ? ballKickoff.position : (Vector3?)null);
+        ResetTeams();
+        if (ball != null) ball.ResetBall(ballKickoff != null ? ballKickoff.position : (Vector3?)null);
         RefreshUI();
     }
 
     public void RestartMatch()
     {
-        playerScore = enemyScore = 0; timeRemaining = matchDuration; running = true;
+        playerScore = enemyScore = 0;
+        timeRemaining = matchDuration;
+        running = true;
         if (endPanel != null) endPanel.SetActive(false);
-        ResetPositions();
+        ResetTeams();
         if (ball != null) ball.ResetBall(ballKickoff != null ? ballKickoff.position : (Vector3?)null);
         RefreshUI();
     }
 
-    private void ResetPositions()
+    private void ResetTeams()
     {
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null && playerSpawn != null) { CharacterController c = player.GetComponent<CharacterController>(); if (c != null) c.enabled = false; player.transform.position = playerSpawn.position; if (c != null) c.enabled = true; }
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        for (int i = 0; i < enemies.Length && i < enemySpawns.Length; i++) enemies[i].transform.position = enemySpawns[i].position;
-        GameObject keeper = GameObject.FindGameObjectWithTag("Goalkeeper");
-        if (keeper != null && goalkeeperSpawn != null) keeper.transform.position = goalkeeperSpawn.position;
+        if (playerTeam != null) playerTeam.ResetTeam();
+        if (opponentTeam != null) opponentTeam.ResetTeam();
     }
 
     private void RefreshUI()
