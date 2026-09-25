@@ -54,7 +54,6 @@ public class BallController : MonoBehaviour
             target.y = controlSocket.position.y + ballGroundOffset + Mathf.Sin(Time.time * dribbleSway) * ballLift;
             Vector3 delta = target - transform.position;
             delta.y = 0f;
-
             body.velocity = delta.sqrMagnitude > 0.01f
                 ? Vector3.Lerp(body.velocity, delta * followSharpness, possessionBias)
                 : Vector3.Lerp(body.velocity, Vector3.zero, 0.12f);
@@ -63,25 +62,20 @@ public class BallController : MonoBehaviour
 
         bool airborne = transform.position.y > initialPosition.y + 0.22f || Mathf.Abs(body.velocity.y) > 0.35f;
         body.drag = airborne ? airDrag : groundFriction;
-
         Vector3 velocity = body.velocity;
         if (!airborne)
         {
             velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundFriction * Time.fixedDeltaTime);
             velocity.z = Mathf.MoveTowards(velocity.z, 0f, groundFriction * Time.fixedDeltaTime);
         }
-
         if (velocity.magnitude > maxSpeed)
             velocity = velocity.normalized * maxSpeed;
-
         body.velocity = velocity;
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.contactCount == 0)
-            return;
-
+        if (collision.contactCount == 0) return;
         ContactPoint contact = collision.GetContact(0);
         if (contact.normal.y > 0.55f && body.velocity.y > maxBounceSpeed)
         {
@@ -99,7 +93,6 @@ public class BallController : MonoBehaviour
             return TrySteal(newOwner, 1f);
         if (Vector3.Distance(transform.position, socket.position) > possessionDistance + 0.35f)
             return false;
-
         owner = newOwner;
         controlSocket = socket;
         body.velocity = Vector3.zero;
@@ -110,20 +103,14 @@ public class BallController : MonoBehaviour
     {
         if (challenger == null || owner == null || Time.time - lastKickTime < controlReleaseTime)
             return false;
-
         float radius = stealRadius + pressure * 0.5f;
         float distance = Vector3.Distance(transform.position, challenger.position);
-        if (distance > radius)
-            return false;
-
+        if (distance > radius) return false;
         Vector3 attackerDirection = challenger.position - owner.position;
         Vector3 ballDirection = transform.position - owner.position;
         float alignment = Vector3.Dot(attackerDirection.normalized, ballDirection.normalized);
         float pressureValue = Mathf.Clamp01(1f - distance / radius);
-
-        if (alignment <= -0.3f || pressureValue <= 0.2f)
-            return false;
-
+        if (alignment <= -0.3f || pressureValue <= 0.2f) return false;
         owner = challenger;
         controlSocket = null;
         body.velocity += (challenger.position - transform.position).normalized * pressurePush * pressure;
@@ -134,62 +121,51 @@ public class BallController : MonoBehaviour
 
     public void Shoot(Vector3 direction, float power, ShotType type, float charge = 1f)
     {
-        Shoot(direction, power, type, 1f, 0f, ShotTechnique.Ground, 0f, false);
+        Shoot(direction, power, type, 1f, 0f, ShotTechnique.Ground, 0f, false, charge);
     }
 
-    public void Shoot(Vector3 direction, float power, ShotType type, float accuracy, float angle, ShotTechnique technique, float pressure, bool firstTouch)
+    public void Shoot(Vector3 direction, float power, ShotType type, float accuracy, float angle, ShotTechnique technique, float pressure, bool firstTouch, float charge = 1f)
     {
         ReleaseControl();
         lastKickTime = Time.time;
-
-        Vector3 shotDirection = direction.normalized;
-        if (shotDirection.sqrMagnitude < 0.001f)
-            shotDirection = Vector3.forward;
-
+        Vector3 shotDirection = direction.sqrMagnitude > 0.001f ? direction.normalized : Vector3.forward;
         Vector3 spreadDirection = Quaternion.Euler(0f, angle, 0f) * shotDirection;
         Vector3 finalDirection = Vector3.Lerp(shotDirection, spreadDirection, Mathf.Clamp01(1f - accuracy));
         finalDirection.y = 0f;
         finalDirection.Normalize();
-
-        float shotPower = Mathf.Clamp(power, 0f, maxSpeed);
-        Vector3 shotVelocity = finalDirection * shotPower * charge;
-
+        Vector3 shotVelocity = finalDirection * Mathf.Clamp(power, 0f, maxSpeed) * charge;
         if (technique == ShotTechnique.Lob || technique == ShotTechnique.Header || technique == ShotTechnique.Volley)
             shotVelocity += Vector3.up * (technique == ShotTechnique.Header ? 3.2f : 2.8f);
-
         if (technique == ShotTechnique.Curve)
             shotVelocity += new Vector3(finalDirection.z, 0f, -finalDirection.x) * (0.9f + pressure * 0.25f);
-
-        if (technique == ShotTechnique.Place)
-            shotVelocity *= 0.88f;
-
-        if (technique == ShotTechnique.Power)
-            shotVelocity *= 1.14f;
-
-        if (technique == ShotTechnique.FirstTouch || firstTouch)
-            shotVelocity += Vector3.up * 0.85f;
-
+        if (technique == ShotTechnique.Place) shotVelocity *= 0.88f;
+        if (technique == ShotTechnique.Power) shotVelocity *= 1.14f;
+        if (technique == ShotTechnique.FirstTouch || firstTouch) shotVelocity += Vector3.up * 0.85f;
         if (pressure > 0.4f)
         {
             float deviation = Mathf.Clamp01(pressure) * 1.2f;
             shotVelocity += new Vector3(Random.Range(-deviation, deviation), 0f, Random.Range(-deviation, deviation));
         }
-
-        if (type == ShotType.Lob)
-            shotVelocity += Vector3.up * 2.5f;
-        if (type == ShotType.Curve)
-            shotVelocity += new Vector3(finalDirection.z, 0f, -finalDirection.x) * 0.6f;
-
+        if (type == ShotType.Lob) shotVelocity += Vector3.up * 2.5f;
+        if (type == ShotType.Curve) shotVelocity += new Vector3(finalDirection.z, 0f, -finalDirection.x) * 0.6f;
         body.velocity = shotVelocity;
     }
-
-    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground, 1f);
 
     public void Pass(Vector3 direction, float power)
     {
         AudioManager.Instance?.PlayPass();
         Shoot(direction, power, ShotType.Ground, 1f);
     }
+
+    public void Pass(Vector3 direction, PassProfile profile)
+    {
+        AudioManager.Instance?.PlayPass();
+        ShotType type = profile.technique == PassTechnique.Lofted ? ShotType.Lob : ShotType.Ground;
+        float lift = profile.technique == PassTechnique.Lofted ? 1f : 0f;
+        Shoot(direction, profile.power, type, profile.accuracy, 0f, ShotTechnique.Ground, profile.pressure, profile.technique == PassTechnique.FirstTime, lift);
+    }
+
+    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground);
 
     public void ResetBall(Vector3? position = null)
     {
@@ -200,10 +176,5 @@ public class BallController : MonoBehaviour
         lastKickTime = -10f;
     }
 
-    public enum ShotType
-    {
-        Ground,
-        Lob,
-        Curve
-    }
+    public enum ShotType { Ground, Lob, Curve }
 }

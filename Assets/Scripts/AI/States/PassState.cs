@@ -22,24 +22,27 @@ public sealed class PassState : IAIState
         }
 
         Transform target = controller.DecisionSystem.FindBestPassTarget();
-        Vector3 direction = controller.DecisionSystem.GetPassDirection(target);
+        if (target == null)
+        {
+            controller.ChangeState(AIStateId.Dribble);
+            return;
+        }
 
-        if (target == null || direction == Vector3.zero)
+        PassProfile profile = controller.DecisionSystem.BuildPassProfile(target);
+        Vector3 targetPosition = controller.DecisionSystem.GetPassTargetPosition(target, profile);
+        Vector3 direction = targetPosition - context.Self.position;
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
         {
             controller.ChangeState(AIStateId.Dribble);
             return;
         }
 
         context.AnimationController?.PlayPass();
-        context.BallController.Pass(direction, controller.PassPower);
+        context.BallController.Pass(direction.normalized, profile);
     }
 
-    public void Tick()
-    {
-        controller.ChangeState(AIStateId.ChaseBall);
-    }
-
-    public void Exit()
-    {
-    }
+    public void Tick() => controller.ChangeState(AIStateId.ChaseBall);
+    public void Exit() { }
 }
