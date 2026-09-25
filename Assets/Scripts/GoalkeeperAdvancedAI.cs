@@ -1,29 +1,44 @@
 using UnityEngine;
 
-public class GoalkeeperAdvancedAI : MonoBehaviour
+public sealed class GoalkeeperAdvancedAI : MonoBehaviour
 {
     [SerializeField] private GoalkeeperController goalkeeper;
     [SerializeField] private Transform ball;
     [SerializeField] private Transform goalCenter;
-    [SerializeField] private float reactionDelay = .12f;
-    [SerializeField] private float predictionTime = .45f;
-    [SerializeField] private float diveSpeed = 7f;
-    [SerializeField] private float horizontalLimit = 4.5f;
-    private float nextReaction;
-    private Vector3 predicted;
+    [SerializeField] private float activeDistance = 22f;
+    [SerializeField] private float minimumShotSpeed = 8f;
+    [SerializeField] private float cueCooldown = 0.5f;
+
+    private float nextCueTime;
+
+    private void Reset()
+    {
+        goalkeeper = GetComponent<GoalkeeperController>();
+    }
+
+    private void Awake()
+    {
+        if (goalkeeper == null)
+            goalkeeper = GetComponent<GoalkeeperController>();
+    }
 
     private void Update()
     {
-        if (ball == null || goalCenter == null) return;
-        Rigidbody rb = ball.GetComponent<Rigidbody>();
-        if (Time.time >= nextReaction)
+        if (goalkeeper == null || ball == null || goalCenter == null || Time.time < nextCueTime)
+            return;
+
+        Rigidbody body = ball.GetComponent<Rigidbody>();
+        if (body == null || body.velocity.magnitude < minimumShotSpeed)
+            return;
+
+        float distance = Vector3.Distance(ball.position, goalCenter.position);
+        Vector3 toGoal = goalCenter.position - ball.position;
+        float angle = Vector3.Dot(body.velocity.normalized, toGoal.normalized);
+
+        if (distance <= activeDistance && angle > 0.65f)
         {
-            nextReaction = Time.time + reactionDelay;
-            predicted = ball.position + (rb != null ? rb.velocity * predictionTime : Vector3.zero);
+            nextCueTime = Time.time + cueCooldown;
+            goalkeeper.PlayPenaltySave();
         }
-        Vector3 target = new Vector3(Mathf.Clamp(predicted.x, -horizontalLimit, horizontalLimit), transform.position.y, goalCenter.position.z);
-        Vector3 direction = target - transform.position; direction.y = 0f;
-        if (direction.sqrMagnitude > .05f) transform.position = Vector3.MoveTowards(transform.position, target, diveSpeed * Time.deltaTime);
-        if (rb != null && rb.velocity.magnitude > 8f && Vector3.Distance(transform.position, predicted) < 1.4f) goalkeeper?.PlayPenaltySave();
     }
 }
