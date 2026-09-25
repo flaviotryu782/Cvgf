@@ -11,12 +11,7 @@ public class MobileInput : MonoBehaviour
     private float kickStarted;
     private BallController.ShotType requestedShot = BallController.ShotType.Ground;
 
-    private void Awake()
-    {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-    }
-
+    private void Awake() { if (Instance != null && Instance != this) { Destroy(gameObject); return; } Instance = this; }
     public void SetMove(Vector2 value) => Move = Vector2.ClampMagnitude(value, 1f);
     public void SetSprint(bool value) => SprintHeld = value;
     public void QueuePass() => passQueued = true;
@@ -26,12 +21,5 @@ public class MobileInput : MonoBehaviour
     public void QueueKick() { BeginKick(); ReleaseKick(); }
     public bool ConsumeSwitch() => false;
     public bool ConsumePass() { bool value = passQueued; passQueued = false; return value; }
-    public bool ConsumeKick(out float charge, out BallController.ShotType type)
-    {
-        if (!kickReleased) { charge = 0f; type = requestedShot; return false; }
-        kickReleased = false;
-        charge = Mathf.Clamp(.35f + (Time.time - kickStarted) * .65f, .35f, 1f);
-        type = requestedShot;
-        return true;
-    }
+    public bool ConsumeKick(out float charge, out BallController.ShotType type) { if (!kickReleased) { charge = 0f; type = requestedShot; return false; } kickReleased = false; charge = Mathf.Clamp(.35f + (Time.time - kickStarted) * .65f, .35f, 1f); type = requestedShot; return true; }
 }
