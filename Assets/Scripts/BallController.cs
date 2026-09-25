@@ -134,19 +134,62 @@ public class BallController : MonoBehaviour
 
     public void Shoot(Vector3 direction, float power, ShotType type, float charge = 1f)
     {
+        Shoot(direction, power, type, 1f, 0f, ShotTechnique.Ground, 0f, false);
+    }
+
+    public void Shoot(Vector3 direction, float power, ShotType type, float accuracy, float angle, ShotTechnique technique, float pressure, bool firstTouch)
+    {
         ReleaseControl();
         lastKickTime = Time.time;
-        direction.y = 0f;
-        if (direction.sqrMagnitude < 0.001f) direction = Vector3.forward;
-        direction.Normalize();
-        Vector3 shotVelocity = direction * Mathf.Clamp(power, 0f, maxSpeed) * charge;
-        if (type == ShotType.Lob) shotVelocity += Vector3.up * 2.5f;
-        if (type == ShotType.Curve) shotVelocity += new Vector3(direction.z, 0f, -direction.x) * 0.6f;
+
+        Vector3 shotDirection = direction.normalized;
+        if (shotDirection.sqrMagnitude < 0.001f)
+            shotDirection = Vector3.forward;
+
+        Vector3 spreadDirection = Quaternion.Euler(0f, angle, 0f) * shotDirection;
+        Vector3 finalDirection = Vector3.Lerp(shotDirection, spreadDirection, Mathf.Clamp01(1f - accuracy));
+        finalDirection.y = 0f;
+        finalDirection.Normalize();
+
+        float shotPower = Mathf.Clamp(power, 0f, maxSpeed);
+        Vector3 shotVelocity = finalDirection * shotPower * charge;
+
+        if (technique == ShotTechnique.Lob || technique == ShotTechnique.Header || technique == ShotTechnique.Volley)
+            shotVelocity += Vector3.up * (technique == ShotTechnique.Header ? 3.2f : 2.8f);
+
+        if (technique == ShotTechnique.Curve)
+            shotVelocity += new Vector3(finalDirection.z, 0f, -finalDirection.x) * (0.9f + pressure * 0.25f);
+
+        if (technique == ShotTechnique.Place)
+            shotVelocity *= 0.88f;
+
+        if (technique == ShotTechnique.Power)
+            shotVelocity *= 1.14f;
+
+        if (technique == ShotTechnique.FirstTouch || firstTouch)
+            shotVelocity += Vector3.up * 0.85f;
+
+        if (pressure > 0.4f)
+        {
+            float deviation = Mathf.Clamp01(pressure) * 1.2f;
+            shotVelocity += new Vector3(Random.Range(-deviation, deviation), 0f, Random.Range(-deviation, deviation));
+        }
+
+        if (type == ShotType.Lob)
+            shotVelocity += Vector3.up * 2.5f;
+        if (type == ShotType.Curve)
+            shotVelocity += new Vector3(finalDirection.z, 0f, -finalDirection.x) * 0.6f;
+
         body.velocity = shotVelocity;
     }
 
-    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground);
-    public void Pass(Vector3 direction, float power) { AudioManager.Instance?.PlayPass(); Shoot(direction, power, ShotType.Ground); }
+    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground, 1f);
+
+    public void Pass(Vector3 direction, float power)
+    {
+        AudioManager.Instance?.PlayPass();
+        Shoot(direction, power, ShotType.Ground, 1f);
+    }
 
     public void ResetBall(Vector3? position = null)
     {
@@ -157,5 +200,10 @@ public class BallController : MonoBehaviour
         lastKickTime = -10f;
     }
 
-    public enum ShotType { Ground, Lob, Curve }
+    public enum ShotType
+    {
+        Ground,
+        Lob,
+        Curve
+    }
 }

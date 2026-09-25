@@ -22,6 +22,7 @@ public class TeamAIControllerStateDriven : MonoBehaviour
     [SerializeField] private float moveSpeed = 4.2f;
     [SerializeField] private float chaseDistance = 18f;
     [SerializeField] private float controlRange = 2f;
+    [SerializeField] private float maxPlayerSpeed = 8f;
 
     [Header("Decision and actions")]
     [SerializeField] private float shotPower = 14f;
@@ -31,6 +32,8 @@ public class TeamAIControllerStateDriven : MonoBehaviour
     [SerializeField] private float minShootDistance = 5f;
     [SerializeField] private float maxShootDistance = 28f;
     [SerializeField] private float minShootScore = 6.5f;
+    [SerializeField] private float minShotPower = 10f;
+    [SerializeField] private float maxShotPower = 22f;
     [SerializeField] private LayerMask obstacleMask = ~0;
     [SerializeField] private float decisionInterval = 0.25f;
 
@@ -64,6 +67,9 @@ public class TeamAIControllerStateDriven : MonoBehaviour
     public float MinShootDistance => minShootDistance;
     public float MaxShootDistance => maxShootDistance;
     public float MinShootScore => minShootScore;
+    public float MinShotPower => minShotPower;
+    public float MaxShotPower => maxShotPower;
+    public float MaxPlayerSpeed => maxPlayerSpeed;
 
     private void Awake()
     {
