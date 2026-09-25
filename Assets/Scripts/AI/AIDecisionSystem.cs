@@ -127,25 +127,42 @@ public sealed class AIDecisionSystem
 
     private float ScoreChase(AIPlayerContext context)
     {
-        if (context.DistanceToBall > controller.ChaseDistance) return 0f;
+        if (context.DistanceToBall > controller.ChaseDistance)
+            return 0f;
+
         return Mathf.InverseLerp(controller.ChaseDistance, 0f, context.DistanceToBall) * 10f;
     }
 
     private float ScoreSupport(AIPlayerContext context)
     {
-        if (context.Ball == null || context.HomePosition == null) return 0f;
+        if (context.Ball == null || context.HomePosition == null)
+            return 0f;
+
         float distance = Vector3.Distance(context.Self.position, context.HomePosition.position);
         return Mathf.InverseLerp(20f, 0f, distance) * 5f;
     }
 
     private float ScoreDefend(AIPlayerContext context)
     {
-        return controller.Role == TeamAIControllerStateDriven.Role.Defender ? 7f : 2f;
+        float score = controller.Role == TeamAIControllerStateDriven.Role.Defender ? 7f : 2.5f;
+
+        if (controller.BallController != null && controller.BallController.Owner != null && controller.BallController.Owner != context.Self)
+        {
+            float distanceToBall = Vector3.Distance(context.Self.position, controller.BallController.Owner.position);
+            float distanceToGoal = controller.TargetGoal != null ? Vector3.Distance(context.Self.position, controller.TargetGoal.position) : 0f;
+
+            score += Mathf.InverseLerp(30f, 0f, distanceToBall) * 7f;
+            score += Mathf.InverseLerp(25f, 0f, distanceToGoal) * 2f;
+        }
+
+        return score;
     }
 
     private float ScoreReturn(AIPlayerContext context)
     {
-        if (context.HomePosition == null) return 0f;
+        if (context.HomePosition == null)
+            return 0f;
+
         float distance = Vector3.Distance(context.Self.position, context.HomePosition.position);
         return Mathf.InverseLerp(2f, 15f, distance) * 6f;
     }

@@ -41,6 +41,7 @@ public class TeamAIControllerStateDriven : MonoBehaviour
     private AIPlayerContext context;
     private float nextDecisionTime;
 
+    public Role RoleValue => role;
     public Role Role => role;
     public Transform Ball => ball;
     public BallController BallController => ballController;
@@ -76,6 +77,7 @@ public class TeamAIControllerStateDriven : MonoBehaviour
         stateMachine.Register(new DribbleState(context, this));
         stateMachine.Register(new ShootState(context, this));
         stateMachine.Register(new PassState(context, this));
+        stateMachine.Register(new DefendState(context, this));
         stateMachine.ChangeState(AIStateId.ReturnToPosition);
         if (adaptiveBrain != null) adaptiveBrain.SetProfile(teamId, role);
     }
@@ -87,12 +89,14 @@ public class TeamAIControllerStateDriven : MonoBehaviour
             nextDecisionTime = Time.time + decisionInterval;
             EvaluateTransition();
         }
+
         stateMachine.Tick();
     }
 
     private void EvaluateTransition()
     {
         AIAction action = decisionSystem.Decide();
+
         if (context.HasBall)
         {
             if (action == AIAction.Shoot) { ChangeState(AIStateId.Shoot); return; }
@@ -100,7 +104,20 @@ public class TeamAIControllerStateDriven : MonoBehaviour
             ChangeState(AIStateId.Dribble);
             return;
         }
-        ChangeState(action == AIAction.Chase ? AIStateId.ChaseBall : AIStateId.ReturnToPosition);
+
+        if (action == AIAction.Defend)
+        {
+            ChangeState(AIStateId.Defend);
+            return;
+        }
+
+        if (action == AIAction.Chase)
+        {
+            ChangeState(AIStateId.ChaseBall);
+            return;
+        }
+
+        ChangeState(AIStateId.ReturnToPosition);
     }
 
     public void ChangeState(AIStateId state) => stateMachine.ChangeState(state);
