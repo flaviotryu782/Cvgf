@@ -3,17 +3,29 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class BallController : MonoBehaviour
 {
+    [Header("Ball movement")]
     [SerializeField] private float maxSpeed = 25f;
     [SerializeField] private float possessionDistance = 2.15f;
     [SerializeField] private float followSharpness = 22f;
     [SerializeField] private float dribbleForward = 1.2f;
     [SerializeField] private float drag = 0.8f;
+    [SerializeField] private float ballLift = 0.15f;
+    [SerializeField] private float controlReleaseTime = 0.12f;
+
+    [Header("Dribble feel")]
+    [SerializeField] private float dribbleSway = 3.5f;
+    [SerializeField] private float possessionBias = 0.22f;
+    [SerializeField] private float ballGroundOffset = 0.12f;
+
+    [Header("Pressure and stealing")]
+    [SerializeField] private float stealRadius = 1.5f;
+    [SerializeField] private float stealBias = 0.8f;
+    [SerializeField] private float pressurePush = 4f;
 
     private Rigidbody body;
     private Vector3 initialPosition;
     private Transform owner;
     private Transform controlSocket;
-    private float dribbleTime;
     private float lastKickTime = -10f;
 
     public Rigidbody Body => body;
@@ -34,19 +46,20 @@ public class BallController : MonoBehaviour
     {
         if (owner != null && controlSocket != null)
         {
-            dribbleTime += Time.fixedDeltaTime * 9f;
             Vector3 target = controlSocket.position + owner.forward * dribbleForward;
+            target.y = controlSocket.position.y + ballGroundOffset + Mathf.Sin(Time.time * dribbleSway) * ballLift;
+
             Vector3 delta = target - transform.position;
             delta.y = 0f;
 
             if (delta.sqrMagnitude > 0.01f)
             {
                 Vector3 followVelocity = delta * followSharpness;
-                body.velocity = Vector3.Lerp(body.velocity, followVelocity, 0.25f);
+                body.velocity = Vector3.Lerp(body.velocity, followVelocity, possessionBias);
             }
             else
             {
-                body.velocity = Vector3.Lerp(body.velocity, Vector3.zero, 0.15f);
+                body.velocity = Vector3.Lerp(body.velocity, Vector3.zero, 0.12f);
             }
         }
     }
@@ -56,11 +69,15 @@ public class BallController : MonoBehaviour
         if (newOwner == null || socket == null)
             return false;
 
-        if (Time.time - lastKickTime < 0.12f)
+        if (Time.time - lastKickTime < controlReleaseTime)
             return false;
 
         if (owner != null && owner != newOwner)
+        {
+            if (TrySteal(newOwner, 1f))
+                return true;
             return false;
+        }
 
         if (Vector3.Distance(transform.position, socket.position) > possessionDistance + 0.35f)
             return false;
@@ -68,6 +85,36 @@ public class BallController : MonoBehaviour
         owner = newOwner;
         controlSocket = socket;
         return true;
+    }
+
+    public bool TrySteal(Transform challenger, float pressure = 1f)
+    {
+        if (challenger == null || owner == null)
+            return false;
+
+        if (Time.time - lastKickTime < controlReleaseTime)
+            return false;
+
+        float distanceToChallenger = Vector3.Distance(transform.position, challenger.position);
+        float effectiveRadius = stealRadius + pressure * 0.5f;
+        if (distanceToChallenger > effectiveRadius)
+            return false;
+
+        Vector3 attackerDirection = challenger.position - owner.position;
+        Vector3 ballDirection = transform.position - owner.position;
+
+        float challengeWeight = Vector3.Dot(attackerDirection.normalized, ballDirection.normalized);
+        float pressureValue = Mathf.Clamp01(1f - (distanceToChallenger / effectiveRadius));
+
+        if (challengeWeight > -0.3f && pressureValue > 0.2f)
+        {
+            owner = challenger;
+            controlSocket = null;
+            body.velocity += (challenger.position - transform.position).normalized * pressurePush * pressure;
+            return true;
+        }
+
+        return false;
     }
 
     public void ReleaseControl()
@@ -88,17 +135,19 @@ public class BallController : MonoBehaviour
         direction.Normalize();
 
         float shotPower = Mathf.Clamp(power, 0f, maxSpeed);
-        body.velocity = direction * shotPower * charge;
+        Vector3 shotVelocity = direction * shotPower * charge;
 
         switch (type)
         {
             case ShotType.Lob:
-                body.velocity += Vector3.up * 2.5f;
+                shotVelocity += Vector3.up * 2.5f;
                 break;
             case ShotType.Curve:
-                body.velocity += new Vector3(direction.z, 0f, -direction.x) * 0.6f;
+                shotVelocity += new Vector3(direction.z, 0f, -direction.x) * 0.6f;
                 break;
         }
+
+        body.velocity = shotVelocity;
     }
 
     public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground, 1f);
