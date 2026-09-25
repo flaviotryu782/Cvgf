@@ -1,137 +1,65 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody))]
-public class BallController : MonoBehaviour
+[RequireComponent(typeof(CharacterController))]
+public class PlayerController : MonoBehaviour
 {
-    [Header("Ball movement")]
-    [SerializeField] private float maxSpeed = 25f;
-    [SerializeField] private float possessionDistance = 2.15f;
-    [SerializeField] private float followSharpness = 22f;
-    [SerializeField] private float dribbleForward = 1.2f;
-    [SerializeField] private float drag = 0.8f;
-    [SerializeField] private float ballLift = 0.15f;
-    [SerializeField] private float controlReleaseTime = 0.12f;
+    [SerializeField] private float speed = 5.5f;
+    [SerializeField] private float sprintSpeed = 8f;
+    [SerializeField] private float acceleration = 18f;
+    [SerializeField] private float deceleration = 24f;
+    [SerializeField] private float maxPlayerSpeed = 8f;
+    [SerializeField] private float rotationSpeed = 12f;
+    [SerializeField] private Transform ball;
+    [SerializeField] private Transform ballSocket;
+    [SerializeField] private BallController ballController;
+    [SerializeField] private float controlRange = 2.2f;
+    [SerializeField] private float dribbleReduction = 0.7f;
 
-    [Header("Dribble feel")]
-    [SerializeField] private float dribbleSway = 3.5f;
-    [SerializeField] private float possessionBias = 0.22f;
-    [SerializeField] private float ballGroundOffset = 0.12f;
-
-    private Rigidbody body;
-    private Vector3 initialPosition;
-    private Transform owner;
-    private Transform controlSocket;
-    private float lastKickTime = -10f;
-
-    public Rigidbody Body => body;
-    public Transform Owner => owner;
-    public bool IsControlled => owner != null;
-    public bool IsOwner(Transform candidate) => owner != null && owner == candidate;
+    private CharacterController controller;
+    private PlayerAnimationController animationController;
+    private Vector3 currentVelocity;
 
     private void Awake()
     {
-        body = GetComponent<Rigidbody>();
-        initialPosition = transform.position;
-        body.interpolation = RigidbodyInterpolation.Interpolate;
-        body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        body.drag = drag;
+        controller = GetComponent<CharacterController>();
+        animationController = GetComponentInChildren<PlayerAnimationController>();
+        if (GetComponent<FootballContactPhysics>() == null)
+            gameObject.AddComponent<FootballContactPhysics>();
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
-        if (owner != null && controlSocket != null)
+        Vector2 input = MobileInput.Instance != null ? MobileInput.Instance.Move : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        Vector3 direction = new Vector3(input.x, 0f, input.y);
+        bool sprinting = input.sqrMagnitude > 0.01f && Input.GetKey(KeyCode.LeftShift);
+        float targetSpeed = sprinting ? sprintSpeed : speed;
+
+        if (direction.sqrMagnitude > 0.01f)
         {
-            Vector3 target = controlSocket.position + owner.forward * dribbleForward;
-            target.y = controlSocket.position.y + ballGroundOffset + Mathf.Sin(Time.time * dribbleSway) * ballLift;
-
-            Vector3 delta = target - transform.position;
-            delta.y = 0f;
-
-            if (delta.sqrMagnitude > 0.01f)
-            {
-                Vector3 followVelocity = delta * followSharpness;
-                body.velocity = Vector3.Lerp(body.velocity, followVelocity, possessionBias);
-            }
-            else
-            {
-                body.velocity = Vector3.Lerp(body.velocity, Vector3.zero, 0.12f);
-            }
+            direction.Normalize();
+            if (ballController != null && ballController.Owner == transform)
+                targetSpeed *= dribbleReduction;
+            currentVelocity = Vector3.MoveTowards(currentVelocity, direction * targetSpeed, acceleration * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
         }
-    }
-
-    public bool TryControl(Transform newOwner, Transform socket)
-    {
-        if (newOwner == null || socket == null)
-            return false;
-
-        if (Time.time - lastKickTime < controlReleaseTime)
-            return false;
-
-        if (owner != null && owner != newOwner)
-            return false;
-
-        if (Vector3.Distance(transform.position, socket.position) > possessionDistance + 0.35f)
-            return false;
-
-        owner = newOwner;
-        controlSocket = socket;
-        return true;
-    }
-
-    public void ReleaseControl()
-    {
-        owner = null;
-        controlSocket = null;
-    }
-
-    public void Shoot(Vector3 direction, float power, ShotType type, float charge = 1f)
-    {
-        ReleaseControl();
-        lastKickTime = Time.time;
-
-        direction.y = 0f;
-        if (direction.sqrMagnitude < 0.001f)
-            direction = Vector3.forward;
-
-        direction.Normalize();
-
-        float shotPower = Mathf.Clamp(power, 0f, maxSpeed);
-        Vector3 shotVelocity = direction * shotPower * charge;
-
-        switch (type)
+        else
         {
-            case ShotType.Lob:
-                shotVelocity += Vector3.up * 2.5f;
-                break;
-            case ShotType.Curve:
-                shotVelocity += new Vector3(direction.z, 0f, -direction.x) * 0.6f;
-                break;
+            currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, deceleration * Time.deltaTime);
         }
 
-        body.velocity = shotVelocity;
+        if (currentVelocity.magnitude > maxPlayerSpeed)
+            currentVelocity = currentVelocity.normalized * maxPlayerSpeed;
+
+        controller.Move(currentVelocity * Time.deltaTime);
+        animationController?.SetLocomotion(currentVelocity.magnitude / Mathf.Max(sprintSpeed, 0.01f), sprinting);
+        TryTakeBall();
     }
 
-    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground, 1f);
-
-    public void Pass(Vector3 direction, float power)
+    private void TryTakeBall()
     {
-        AudioManager.Instance?.PlayPass();
-        Shoot(direction, power, ShotType.Ground, 1f);
-    }
-
-    public void ResetBall(Vector3? position = null)
-    {
-        ReleaseControl();
-        body.velocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
-        transform.position = position ?? initialPosition;
-        lastKickTime = -10f;
-    }
-
-    public enum ShotType
-    {
-        Ground,
-        Lob,
-        Curve
+        if (ball == null || ballController == null || ballSocket == null)
+            return;
+        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform))
+            ballController.TryControl(transform, ballSocket);
     }
 }
