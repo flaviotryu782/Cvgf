@@ -3,23 +3,40 @@ using UnityEngine;
 public class FoulSystem : MonoBehaviour
 {
     [SerializeField] private PenaltyShootoutManager penaltyManager;
-    [SerializeField, Range(0f, 1f)] private float foulChance = .08f;
-    [SerializeField] private float cooldown = 4f;
+    [SerializeField] private Transform penaltyAreaCenter;
+    [SerializeField] private float penaltyAreaRadius = 8f;
+    [SerializeField] private float foulCooldown = 2f;
+    [SerializeField, Range(0f, 1f)] private float slideFoulChance = .22f;
+    [SerializeField, Range(0f, 1f)] private float hardContactFoulChance = .1f;
+    [SerializeField] private bool cardsEnabled = true;
     private float nextFoulTime;
+    private int yellowCards;
 
-    public void CheckContact(float relativeSpeed)
+    public int YellowCards => yellowCards;
+    public event System.Action<bool> FoulCalled;
+
+    public void RegisterChallenge(DefensiveActionController defender, bool sliding)
     {
-        if (Time.time < nextFoulTime || penaltyManager == null) return;
-        if (relativeSpeed >= 4f && Random.value < foulChance)
-        {
-            nextFoulTime = Time.time + cooldown;
-            penaltyManager.StartShootout();
-        }
+        if (defender == null || Time.time < nextFoulTime) return;
+        float chance = sliding ? slideFoulChance : hardContactFoulChance;
+        if (Random.value > chance) return;
+        bool insidePenaltyArea = penaltyAreaCenter != null && Vector3.Distance(defender.transform.position, penaltyAreaCenter.position) <= penaltyAreaRadius;
+        CallFoul(insidePenaltyArea, sliding);
     }
 
-    private void OnControllerColliderHit(ControllerColliderHit hit)
+    public void CheckContact(Vector3 position, float relativeSpeed, bool sliding)
     {
-        Rigidbody body = hit.collider.attachedRigidbody;
-        if (body != null) CheckContact(body.velocity.magnitude);
+        if (Time.time < nextFoulTime || relativeSpeed < 3.5f) return;
+        bool inside = penaltyAreaCenter != null && Vector3.Distance(position, penaltyAreaCenter.position) <= penaltyAreaRadius;
+        if (Random.value <= (sliding ? slideFoulChance : hardContactFoulChance)) CallFoul(inside, sliding);
+    }
+
+    private void CallFoul(bool penalty, bool severe)
+    {
+        nextFoulTime = Time.time + foulCooldown;
+        if (cardsEnabled && severe) yellowCards++;
+        FoulCalled?.Invoke(penalty);
+        AudioManager.Instance?.PlayWhistle();
+        if (penalty && penaltyManager != null) penaltyManager.StartShootout();
     }
 }
