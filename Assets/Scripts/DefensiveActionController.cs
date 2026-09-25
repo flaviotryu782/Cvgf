@@ -9,7 +9,6 @@ public class DefensiveActionController : MonoBehaviour
     [SerializeField] private float slideRange = 2.8f;
     [SerializeField] private float slideCooldown = 1.2f;
     [SerializeField] private float pressureRange = 4f;
-    [SerializeField] private float pressureSpeedMultiplier = .7f;
     [SerializeField] private PlayerAnimationController animationController;
     [SerializeField] private FoulSystem foulSystem;
     private CharacterController controller;
@@ -37,14 +36,19 @@ public class DefensiveActionController : MonoBehaviour
 
     public void AttemptTackle(bool slide)
     {
-        if (ball == null || Time.time < nextSlide && slide) return;
+        if (ball == null || (slide && Time.time < nextSlide)) return;
         float range = slide ? slideRange : tackleRange;
         if (Vector3.Distance(transform.position, ball.position) > range) return;
         Vector3 toBall = ball.position - transform.position;
-        float facing = Vector3.Dot(transform.forward, toBall.normalized);
-        if (facing < (slide ? -.2f : .05f)) return;
-        if (slide) { IsSliding = true; nextSlide = Time.time + slideCooldown; animationController?.PlayFall(); }
-        else animationController?.PlayDefend();
+        if (Vector3.Dot(transform.forward, toBall.normalized) < (slide ? -.2f : .05f)) return;
+        if (slide)
+        {
+            IsSliding = true;
+            nextSlide = Time.time + slideCooldown;
+            animationController?.PlaySlide();
+        }
+        else animationController?.PlayTackle();
+
         Rigidbody body = ball.GetComponent<Rigidbody>();
         if (body != null)
         {
