@@ -14,7 +14,7 @@ public class GoalkeeperController : MonoBehaviour
     [SerializeField] private float zLimit = 1.5f;
     [SerializeField] private float predictionTime = 0.45f;
     [SerializeField] private float goalLineOffset = 0.45f;
-    [SerializeField] private float cross anticipation = 0.35f;
+    [SerializeField] private float crossAnticipation = 0.35f;
 
     [Header("Reaction")]
     [SerializeField] private float saveDistance = 1.3f;
@@ -80,7 +80,6 @@ public class GoalkeeperController : MonoBehaviour
                 predicted = ball.position + velocity * timeToGoalLine;
         }
 
-        // Anticipate a cross by moving slightly toward the projected delivery side.
         if (Mathf.Abs(velocity.x) > 3f)
             predicted.x += Mathf.Sign(velocity.x) * crossAnticipation;
 
