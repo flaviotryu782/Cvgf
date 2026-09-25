@@ -1,54 +1,65 @@
 using UnityEngine;
 
-public sealed class DribbleState : IAIState
+public sealed class AIPlayerContext
 {
-    private readonly AIPlayerContext context;
     private readonly TeamAIControllerStateDriven controller;
+    private Vector3 currentVelocity;
 
-    public AIStateId Id => AIStateId.Dribble;
+    public TeamAIControllerStateDriven Controller => controller;
+    public Transform Self => controller.transform;
+    public Transform Ball => controller.Ball;
+    public BallController BallController => controller.BallController;
+    public Transform TargetGoal => controller.TargetGoal;
+    public Transform HomePosition => controller.HomePosition;
+    public Transform BallSocket => controller.BallSocket;
+    public CharacterController CharacterController => controller.CharacterController;
+    public PlayerAnimationController AnimationController => controller.AnimationController;
 
-    public DribbleState(AIPlayerContext context, TeamAIControllerStateDriven controller)
+    public bool HasBall => BallController != null && BallController.Owner == Self;
+    public float DistanceToBall => Ball == null ? float.MaxValue : Vector3.Distance(Self.position, Ball.position);
+
+    public AIPlayerContext(TeamAIControllerStateDriven controller)
     {
-        this.context = context;
         this.controller = controller;
     }
 
-    public void Enter()
+    public void MoveTo(Vector3 destination, float speed)
     {
-        context.AnimationController?.PlayDribble();
-    }
+        Vector3 direction = destination - Self.position;
+        direction.y = 0f;
 
-    public void Tick()
-    {
-        if (!context.HasBall)
+        if (direction.sqrMagnitude < 0.05f)
         {
-            controller.ChangeState(AIStateId.ChaseBall);
+            currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, 24f * Time.deltaTime);
+            CharacterController.Move(currentVelocity * Time.deltaTime);
+            AnimationController?.SetLocomotion(0f, false);
             return;
         }
 
-        AIAction action = controller.DecisionSystem.Decide();
+        direction.Normalize();
+        Vector3 targetVelocity = direction * speed;
+        currentVelocity = Vector3.MoveTowards(currentVelocity, targetVelocity, 18f * Time.deltaTime);
 
-        switch (action)
-        {
-            case AIAction.Shoot:
-                controller.ChangeState(AIStateId.Shoot);
-                break;
-            case AIAction.Pass:
-                controller.ChangeState(AIStateId.Pass);
-                break;
-            default:
-                MoveForward();
-                break;
-        }
+        CharacterController.Move(currentVelocity * Time.deltaTime);
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+        Self.rotation = Quaternion.Slerp(Self.rotation, targetRotation, 8f * Time.deltaTime);
+
+        float locomotion = Mathf.Clamp01(currentVelocity.magnitude / Mathf.Max(speed, 0.01f));
+        AnimationController?.SetLocomotion(locomotion, false);
     }
 
-    private void MoveForward()
+    public bool TryTakePossession(float range)
     {
-        Vector3 destination = context.Self.position + context.Self.forward * 4f;
-        context.MoveTo(destination, controller.MoveSpeed);
-    }
+        if (Ball == null || BallController == null || BallSocket == null)
+            return false;
 
-    public void Exit()
-    {
+        if (BallController.Owner != null && BallController.Owner != Self)
+            return false;
+
+        if (DistanceToBall > range)
+            return false;
+
+        return BallController.TryControl(Self, BallSocket);
     }
 }

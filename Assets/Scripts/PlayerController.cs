@@ -1,15 +1,137 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
-public class PlayerController : MonoBehaviour
+[RequireComponent(typeof(Rigidbody))]
+public class BallController : MonoBehaviour
 {
-    [SerializeField] private float speed = 5.5f; [SerializeField] private float sprintSpeed = 8f; [SerializeField] private float rotationSpeed = 12f; [SerializeField] private Transform ball; [SerializeField] private BallController ballController; [SerializeField] private Transform ballSocket; [SerializeField] private Transform enemyGoal; [SerializeField] private Transform[] passTargets; [SerializeField] private float controlRange = 2.2f; [SerializeField] private float shotPower = 14f; [SerializeField] private float passPower = 8f; [SerializeField] private PlayerAnimationController animationController;
-    private CharacterController controller;
-    private void Awake() { controller = GetComponent<CharacterController>(); if (animationController == null) animationController = GetComponentInChildren<PlayerAnimationController>(); }
-    private void Update()
+    [Header("Ball movement")]
+    [SerializeField] private float maxSpeed = 25f;
+    [SerializeField] private float possessionDistance = 2.15f;
+    [SerializeField] private float followSharpness = 22f;
+    [SerializeField] private float dribbleForward = 1.2f;
+    [SerializeField] private float drag = 0.8f;
+    [SerializeField] private float ballLift = 0.15f;
+    [SerializeField] private float controlReleaseTime = 0.12f;
+
+    [Header("Dribble feel")]
+    [SerializeField] private float dribbleSway = 3.5f;
+    [SerializeField] private float possessionBias = 0.22f;
+    [SerializeField] private float ballGroundOffset = 0.12f;
+
+    private Rigidbody body;
+    private Vector3 initialPosition;
+    private Transform owner;
+    private Transform controlSocket;
+    private float lastKickTime = -10f;
+
+    public Rigidbody Body => body;
+    public Transform Owner => owner;
+    public bool IsControlled => owner != null;
+    public bool IsOwner(Transform candidate) => owner != null && owner == candidate;
+
+    private void Awake()
     {
-        Vector2 input = MobileInput.Instance != null ? MobileInput.Instance.Move : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")); Vector3 direction = new Vector3(input.x, 0f, input.y); if (direction.sqrMagnitude > 1f) direction.Normalize(); bool sprint = MobileInput.Instance != null ? MobileInput.Instance.SprintHeld : Input.GetKey(KeyCode.LeftShift); controller.Move(direction * (sprint ? sprintSpeed : speed) * Time.deltaTime); if (direction.sqrMagnitude > .01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime); animationController?.SetLocomotion(direction.magnitude * (sprint ? 1f : .65f), sprint && direction.sqrMagnitude > .01f);
-        if (ballController == null || ball == null || ballSocket == null) return; if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform)) ballController.TryControl(transform, ballSocket); bool pass = MobileInput.Instance != null ? MobileInput.Instance.ConsumePass() : Input.GetKeyDown(KeyCode.LeftControl); bool kick = false; float charge = 1f; BallController.ShotType type = BallController.ShotType.Ground; if (MobileInput.Instance != null) kick = MobileInput.Instance.ConsumeKick(out charge, out type); else if (Input.GetKeyDown(KeyCode.Space)) kick = true; if (ballController.Owner != transform) return; if (pass) { animationController?.PlayPass(); AudioManager.Instance?.PlayPass(); ballController.Pass(GetPassDirection(), passPower); } else if (kick) { animationController?.PlayKick(); AudioManager.Instance?.PlayKick(); CameraDirector.Instance?.ZoomForShot(); AudioManager.Instance?.Vibrate(.06f); ballController.Shoot((enemyGoal.position - ball.position).normalized, shotPower, type, charge); }
+        body = GetComponent<Rigidbody>();
+        initialPosition = transform.position;
+        body.interpolation = RigidbodyInterpolation.Interpolate;
+        body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        body.drag = drag;
     }
-    private Vector3 GetPassDirection() { Transform best = null; float scoreBest = float.MaxValue; if (passTargets != null) foreach (Transform target in passTargets) { if (target == null) continue; Vector3 delta = target.position - transform.position; float score = delta.magnitude - Vector3.Dot(transform.forward, delta.normalized) * 3f; if (score < scoreBest) { scoreBest = score; best = target; } } return best != null ? (best.position - ball.position).normalized : transform.forward; }
+
+    private void FixedUpdate()
+    {
+        if (owner != null && controlSocket != null)
+        {
+            Vector3 target = controlSocket.position + owner.forward * dribbleForward;
+            target.y = controlSocket.position.y + ballGroundOffset + Mathf.Sin(Time.time * dribbleSway) * ballLift;
+
+            Vector3 delta = target - transform.position;
+            delta.y = 0f;
+
+            if (delta.sqrMagnitude > 0.01f)
+            {
+                Vector3 followVelocity = delta * followSharpness;
+                body.velocity = Vector3.Lerp(body.velocity, followVelocity, possessionBias);
+            }
+            else
+            {
+                body.velocity = Vector3.Lerp(body.velocity, Vector3.zero, 0.12f);
+            }
+        }
+    }
+
+    public bool TryControl(Transform newOwner, Transform socket)
+    {
+        if (newOwner == null || socket == null)
+            return false;
+
+        if (Time.time - lastKickTime < controlReleaseTime)
+            return false;
+
+        if (owner != null && owner != newOwner)
+            return false;
+
+        if (Vector3.Distance(transform.position, socket.position) > possessionDistance + 0.35f)
+            return false;
+
+        owner = newOwner;
+        controlSocket = socket;
+        return true;
+    }
+
+    public void ReleaseControl()
+    {
+        owner = null;
+        controlSocket = null;
+    }
+
+    public void Shoot(Vector3 direction, float power, ShotType type, float charge = 1f)
+    {
+        ReleaseControl();
+        lastKickTime = Time.time;
+
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f)
+            direction = Vector3.forward;
+
+        direction.Normalize();
+
+        float shotPower = Mathf.Clamp(power, 0f, maxSpeed);
+        Vector3 shotVelocity = direction * shotPower * charge;
+
+        switch (type)
+        {
+            case ShotType.Lob:
+                shotVelocity += Vector3.up * 2.5f;
+                break;
+            case ShotType.Curve:
+                shotVelocity += new Vector3(direction.z, 0f, -direction.x) * 0.6f;
+                break;
+        }
+
+        body.velocity = shotVelocity;
+    }
+
+    public void Kick(Vector3 direction, float power) => Shoot(direction, power, ShotType.Ground, 1f);
+
+    public void Pass(Vector3 direction, float power)
+    {
+        AudioManager.Instance?.PlayPass();
+        Shoot(direction, power, ShotType.Ground, 1f);
+    }
+
+    public void ResetBall(Vector3? position = null)
+    {
+        ReleaseControl();
+        body.velocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        transform.position = position ?? initialPosition;
+        lastKickTime = -10f;
+    }
+
+    public enum ShotType
+    {
+        Ground,
+        Lob,
+        Curve
+    }
 }

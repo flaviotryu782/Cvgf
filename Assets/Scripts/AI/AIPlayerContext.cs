@@ -3,15 +3,19 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
+    [Header("Movement")]
     [SerializeField] private float speed = 5.5f;
     [SerializeField] private float sprintSpeed = 8f;
     [SerializeField] private float acceleration = 18f;
     [SerializeField] private float deceleration = 24f;
     [SerializeField] private float rotationSpeed = 12f;
+
+    [Header("Ball control")]
     [SerializeField] private Transform ball;
     [SerializeField] private Transform ballSocket;
     [SerializeField] private BallController ballController;
     [SerializeField] private float controlRange = 2.2f;
+    [SerializeField] private float dribbleReduction = 0.7f;
 
     private CharacterController controller;
     private PlayerAnimationController animationController;
@@ -30,6 +34,7 @@ public class PlayerController : MonoBehaviour
 
         float targetSpeed = (input.sqrMagnitude > 0.01f) ? speed : 0f;
         bool sprinting = input.sqrMagnitude > 0.01f && (Input.GetKey(KeyCode.LeftShift) || (MobileInput.Instance != null && MobileInput.Instance.IsSprinting));
+
         if (sprinting)
             targetSpeed = sprintSpeed;
 
@@ -45,6 +50,11 @@ public class PlayerController : MonoBehaviour
         else
         {
             currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, deceleration * Time.deltaTime);
+        }
+
+        if (ballController != null && ballController.Owner == transform)
+        {
+            currentVelocity *= dribbleReduction;
         }
 
         controller.Move(currentVelocity * Time.deltaTime);
