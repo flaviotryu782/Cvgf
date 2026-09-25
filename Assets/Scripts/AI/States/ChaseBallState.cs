@@ -1,50 +1,64 @@
 using UnityEngine;
 
-public sealed class ChaseBallState : IAIState
+public sealed class AIPlayerContext
 {
-    private readonly AIPlayerContext context;
     private readonly TeamAIControllerStateDriven controller;
+    private Vector3 currentVelocity;
 
-    public AIStateId Id => AIStateId.ChaseBall;
+    public TeamAIControllerStateDriven Controller => controller;
+    public Transform Self => controller.transform;
+    public Transform Ball => controller.Ball;
+    public BallController BallController => controller.BallController;
+    public Transform TargetGoal => controller.TargetGoal;
+    public Transform HomePosition => controller.HomePosition;
+    public Transform BallSocket => controller.BallSocket;
+    public CharacterController CharacterController => controller.CharacterController;
+    public PlayerAnimationController AnimationController => controller.AnimationController;
 
-    public ChaseBallState(AIPlayerContext context, TeamAIControllerStateDriven controller)
+    public bool HasBall => BallController != null && BallController.Owner == Self;
+    public float DistanceToBall => Ball == null ? float.MaxValue : Vector3.Distance(Self.position, Ball.position);
+
+    public AIPlayerContext(TeamAIControllerStateDriven controller)
     {
-        this.context = context;
         this.controller = controller;
     }
 
-    public void Enter()
+    public void MoveTo(Vector3 destination, float speed)
     {
-    }
+        Vector3 direction = destination - Self.position;
+        direction.y = 0f;
 
-    public void Tick()
-    {
-        if (context.Ball == null)
-            return;
-
-        if (context.BallController != null && context.BallController.Owner != null && context.BallController.Owner != context.Self)
+        if (direction.sqrMagnitude < 0.05f)
         {
-            // Outro jogador já está com a bola; o agente só deve disputar se estiver em faixa de pressão.
-            if (context.DistanceToBall <= controller.ChaseDistance)
-            {
-                context.MoveTo(context.Ball.position, controller.MoveSpeed * 0.8f);
-            }
-            else
-            {
-                controller.ChangeState(AIStateId.ReturnToPosition);
-            }
+            currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, 24f * Time.deltaTime);
+            CharacterController.Move(currentVelocity * Time.deltaTime);
+            AnimationController?.SetLocomotion(0f, false);
             return;
         }
 
-        context.MoveTo(context.Ball.position, controller.MoveSpeed);
+        direction.Normalize();
+        Vector3 targetVelocity = direction * speed;
+        currentVelocity = Vector3.MoveTowards(currentVelocity, targetVelocity, 18f * Time.deltaTime);
 
-        if (context.TryTakePossession(controller.ControlRange))
-        {
-            controller.ChangeState(AIStateId.Dribble);
-        }
+        CharacterController.Move(currentVelocity * Time.deltaTime);
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+        Self.rotation = Quaternion.Slerp(Self.rotation, targetRotation, 8f * Time.deltaTime);
+
+        AnimationController?.SetLocomotion(Mathf.Clamp01(currentVelocity.magnitude / Mathf.Max(speed, 0.01f)), false);
     }
 
-    public void Exit()
+    public bool TryTakePossession(float range)
     {
+        if (Ball == null || BallController == null || BallSocket == null)
+            return false;
+
+        if (BallController.Owner != null && BallController.Owner != Self)
+            return false;
+
+        if (DistanceToBall > range)
+            return false;
+
+        return BallController.TryControl(Self, BallSocket);
     }
 }
