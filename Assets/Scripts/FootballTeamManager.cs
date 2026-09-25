@@ -32,11 +32,8 @@ public class FootballTeamManager : MonoBehaviour
 
     private void Update()
     {
-        if (side == TeamSide.Player && enablePlayerSwitching)
-        {
-            if (MobileInput.Instance != null && MobileInput.Instance.ConsumeSwitch()) SwitchPlayer();
-            else if (Input.GetKeyDown(KeyCode.Tab)) SwitchPlayer();
-        }
+        if (side == TeamSide.Player && enablePlayerSwitching && Input.GetKeyDown(KeyCode.Tab))
+            SwitchPlayer();
     }
 
     public void ConfigureTeam()
@@ -62,7 +59,8 @@ public class FootballTeamManager : MonoBehaviour
     public void ResetTeam()
     {
         if (outfieldPlayers == null) return;
-        for (int i = 0; i < outfieldPlayers.Length && i < spawnPoints.Length; i++)
+        int spawnCount = spawnPoints == null ? 0 : spawnPoints.Length;
+        for (int i = 0; i < outfieldPlayers.Length && i < spawnCount; i++)
         {
             if (outfieldPlayers[i] == null || spawnPoints[i] == null) continue;
             CharacterController controller = outfieldPlayers[i].GetComponent<CharacterController>();
