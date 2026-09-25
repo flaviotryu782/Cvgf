@@ -16,9 +16,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float controlRange = 2.2f;
     [SerializeField] private float shotPower = 14f;
     [SerializeField] private float passPower = 8f;
+    [SerializeField] private PlayerAnimationController animationController;
 
     private CharacterController controller;
-    private void Awake() => controller = GetComponent<CharacterController>();
+    private void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        if (animationController == null) animationController = GetComponentInChildren<PlayerAnimationController>();
+    }
 
     private void Update()
     {
@@ -28,18 +33,18 @@ public class PlayerController : MonoBehaviour
         bool sprint = MobileInput.Instance != null ? MobileInput.Instance.SprintHeld : Input.GetKey(KeyCode.LeftShift);
         controller.Move(direction * (sprint ? sprintSpeed : speed) * Time.deltaTime);
         if (direction.sqrMagnitude > .01f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
+        if (animationController != null) animationController.SetLocomotion(direction.magnitude * (sprint ? 1f : .65f), sprint && direction.sqrMagnitude > .01f);
 
         if (ballController == null || ball == null || ballSocket == null) return;
-        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform))
-            ballController.TryControl(transform, ballSocket);
+        if (Vector3.Distance(transform.position, ball.position) <= controlRange && (ballController.Owner == null || ballController.Owner == transform)) ballController.TryControl(transform, ballSocket);
 
         bool pass = MobileInput.Instance != null ? MobileInput.Instance.ConsumePass() : Input.GetKeyDown(KeyCode.LeftControl);
         bool kick = false; float charge = 1f; BallController.ShotType type = BallController.ShotType.Ground;
         if (MobileInput.Instance != null) kick = MobileInput.Instance.ConsumeKick(out charge, out type);
         else if (Input.GetKeyDown(KeyCode.Space)) kick = true;
         if (ballController.Owner != transform) return;
-        if (pass) ballController.Pass(GetPassDirection(), passPower);
-        else if (kick) ballController.Shoot((enemyGoal.position - ball.position).normalized, shotPower, type, charge);
+        if (pass) { animationController?.PlayPass(); ballController.Pass(GetPassDirection(), passPower); }
+        else if (kick) { animationController?.PlayKick(); ballController.Shoot((enemyGoal.position - ball.position).normalized, shotPower, type, charge); }
     }
 
     private Vector3 GetPassDirection()
